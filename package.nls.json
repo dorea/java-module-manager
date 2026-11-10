@@ -1,0 +1,14 @@
+{
+  "cat": "Java Modules",
+  "cmd.select": "Select Enabled Modules",
+  "cmd.toggleFolder": "Open/Close This Module",
+  "cmd.editor.disable": "Java Modules: Close This Module",
+  "cmd.editor.enable": "Java Modules: Open This Module",
+  "cmd.savePreset": "Save Current Selection as Preset",
+  "cmd.applyPreset": "Apply Preset",
+  "cmd.rescan": "Rescan Modules",
+  "cfg.title": "Java Module Manager",
+  "cfg.pinned": "Optional: pinned base modules (matched by `artifactId` or folder name) that always stay enabled and cannot be unchecked. Empty by default = all modules can be closed; closing a module that others depend on still triggers a warning.",
+  "cfg.depth": "Maximum directory depth to scan for pom.xml files.",
+  "cfg.colorDesc": "Color used for closed module folders (badge and label) in the Explorer."
+}

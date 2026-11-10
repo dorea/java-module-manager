@@ -1,0 +1,12 @@
+node_modules/
+out/
+*.vsix
+.probe-ext/
+.tmp-*/
+
+# 本机专属，不入公开仓库
+install.md
+.vscode/launch.json
+
+# 编辑器本地历史快照
+.history/

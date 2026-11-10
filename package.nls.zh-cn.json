@@ -1,0 +1,14 @@
+{
+  "cat": "Java 模块",
+  "cmd.select": "选择启用的模块",
+  "cmd.toggleFolder": "开启/关闭此模块",
+  "cmd.editor.disable": "Java 模块: 关闭此模块",
+  "cmd.editor.enable": "Java 模块: 开启此模块",
+  "cmd.savePreset": "保存当前选择为预设",
+  "cmd.applyPreset": "应用预设",
+  "cmd.rescan": "重新扫描模块",
+  "cfg.title": "Java Module Manager",
+  "cfg.pinned": "可选：锁定常驻的基础模块（按 `artifactId` 或文件夹名匹配），始终启用且多选框中不可取消。默认为空 = 所有模块都可关闭；关闭被依赖模块时仍会有警告拦截。",
+  "cfg.depth": "扫描 pom.xml 的最大目录深度。",
+  "cfg.colorDesc": "Explorer 中已关闭模块文件夹（⊘ 角标及文件夹名）的颜色。"
+}

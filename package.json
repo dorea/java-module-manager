@@ -1,0 +1,156 @@
+{
+  "name": "java-module-manager",
+  "displayName": "Java Module Manager",
+  "description": "Eclipse-style Maven module open/close (close project): right-click or status bar to pick which modules to compile; the rest are not imported or compiled",
+  "version": "0.1.0",
+  "publisher": "dodo",
+  "license": "MIT",
+  "icon": "media/icon.png",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/dorea/java-module-manager.git"
+  },
+  "bugs": {
+    "url": "https://github.com/dorea/java-module-manager/issues"
+  },
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "keywords": [
+    "java",
+    "maven",
+    "multi-module",
+    "modules",
+    "jdt",
+    "performance",
+    "eclipse",
+    "close project"
+  ],
+  "l10n": "l10n",
+  "activationEvents": [
+    "workspaceContains:**/pom.xml"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "colors": [
+      {
+        "id": "javaModuleManager.closedModule",
+        "description": "%cfg.colorDesc%",
+        "defaults": {
+          "light": "#7A8FA3",
+          "dark": "#7A8FA3",
+          "hc_light": "#7A8FA3",
+          "hc_dark": "#7A8FA3"
+        }
+      }
+    ],
+    "commands": [
+      {
+        "command": "javaModuleManager.select",
+        "title": "%cmd.select%",
+        "category": "%cat%"
+      },
+      {
+        "command": "javaModuleManager.toggleFolder",
+        "title": "%cmd.toggleFolder%",
+        "category": "%cat%"
+      },
+      {
+        "command": "javaModuleManager.toggleEditorDisable",
+        "title": "%cmd.editor.disable%"
+      },
+      {
+        "command": "javaModuleManager.toggleEditorEnable",
+        "title": "%cmd.editor.enable%"
+      },
+      {
+        "command": "javaModuleManager.savePreset",
+        "title": "%cmd.savePreset%",
+        "category": "%cat%"
+      },
+      {
+        "command": "javaModuleManager.applyPreset",
+        "title": "%cmd.applyPreset%",
+        "category": "%cat%"
+      },
+      {
+        "command": "javaModuleManager.rescan",
+        "title": "%cmd.rescan%",
+        "category": "%cat%"
+      }
+    ],
+    "menus": {
+      "commandPalette": [
+        {
+          "command": "javaModuleManager.toggleFolder",
+          "when": "false"
+        },
+        {
+          "command": "javaModuleManager.toggleEditorDisable",
+          "when": "javaModuleManager.moduleEnabled == true"
+        },
+        {
+          "command": "javaModuleManager.toggleEditorEnable",
+          "when": "javaModuleManager.moduleEnabled == false"
+        }
+      ],
+      "explorer/context": [
+        {
+          "command": "javaModuleManager.toggleFolder",
+          "when": "explorerResourceIsFolder",
+          "group": "9_javaModuleManager@50"
+        }
+      ],
+      "editor/context": [
+        {
+          "command": "javaModuleManager.toggleEditorDisable",
+          "when": "javaModuleManager.moduleEnabled == true",
+          "group": "9_javaModuleManager@50"
+        },
+        {
+          "command": "javaModuleManager.toggleEditorEnable",
+          "when": "javaModuleManager.moduleEnabled == false",
+          "group": "9_javaModuleManager@50"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "%cfg.title%",
+      "properties": {
+        "javaModuleManager.pinnedModules": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [],
+          "markdownDescription": "%cfg.pinned%"
+        },
+        "javaModuleManager.maxScanDepth": {
+          "type": "number",
+          "default": 5,
+          "description": "%cfg.depth%"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "build": "npm run typecheck && node esbuild.mjs",
+    "test": "node esbuild.mjs && node out/sanity.mjs",
+    "package": "vsce package --allow-missing-repository --no-dependencies",
+    "watch": "node esbuild.mjs --watch"
+  },
+  "dependencies": {
+    "fast-xml-parser": "^4.5.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "@types/vscode": "^1.85.0",
+    "@vscode/vsce": "^3.2.0",
+    "esbuild": "^0.24.0",
+    "typescript": "^5.7.0"
+  }
+}

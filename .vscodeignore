@@ -1,0 +1,17 @@
+src/**
+test/**
+tools/**
+install.md
+.vscode/**
+node_modules/**
+*.vsix
+esbuild.mjs
+tsconfig.json
+.gitignore
+.git/**
+out/sanity.mjs*
+.probe-ext/**
+.tmp-*/**
+PUBLISH.md
+.history/**
+.github/**
