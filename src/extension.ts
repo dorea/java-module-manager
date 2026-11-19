@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
+import * as fs from 'fs';
 import { ModuleInfo, scanRoots } from './lib/scan';
 import { buildGraph, DepGraph } from './lib/depgraph';
 import { arraysEqual, isModuleExcluded, mergeExclusions } from './lib/exclusions';
@@ -131,6 +132,10 @@ class ModuleManager {
       disabled.length ? `${vscode.l10n.t('Closed:')} ${disabled.map((f) => `\`${f}\``).join(' ')}\n\n` : '',
     );
     md.appendMarkdown(vscode.l10n.t('Click this status bar item to change the selection.'));
+    md.appendMarkdown(
+      `\n\n[${vscode.l10n.t('Reload Window')}](command:workbench.action.reloadWindow) · [${vscode.l10n.t('Clean Java Workspace')}](command:javaModuleManager.cleanJavaWorkspace)`,
+    );
+    md.isTrusted = true;
     this.statusItem.tooltip = md;
     this.statusItem.show();
     this.updateEditorContext();
@@ -168,8 +173,8 @@ class ModuleManager {
   // ---- 应用变更 ----
 
   /**
-   * 把"请求启用的集合"落到 settings：补上锁定模块和依赖闭包，写 java.import.exclusions，
-   * 弹生效提示。
+   * 把"请求启用的集合"落到 settings：补上锁定模块和依赖闭包，写 java.import.exclusions。
+   * 全程静默（不弹通知）——状态栏数字自己会变；重载/清理的入口在状态栏 tooltip 里。
    */
   async applyRequested(requested: Set<string>): Promise<void> {
     const all = this.toggleable();
@@ -179,42 +184,16 @@ class ModuleManager {
     }
     const pinned = this.pinnedFolders();
     const final = this.graph.closure(new Set([...requested, ...pinned]));
-    const autoAdded = new Set([...final].filter((f) => !requested.has(f) && !pinned.has(f)));
-
-    const beforeDisabled = this.disabledFolders();
     const disabled = all.map((m) => m.folder).filter((f) => !final.has(f)).sort();
 
     const config = vscode.workspace.getConfiguration('java');
     const current = config.get<string[]>('import.exclusions') ?? [];
     const next = mergeExclusions(current, disabled, all.map((m) => m.folder));
     if (arraysEqual(current, next)) {
-      void vscode.window.showInformationMessage(vscode.l10n.t('Java module selection unchanged.'));
-      return;
+      return; // 没变化：静默（状态栏数字已经是对的）
     }
     await config.update('import.exclusions', next, vscode.ConfigurationTarget.Workspace);
     this.refresh();
-
-    const newlyDisabled = disabled.filter((f) => !beforeDisabled.has(f));
-    const newlyEnabled = [...beforeDisabled].filter((f) => !disabled.includes(f));
-    const parts: string[] = [vscode.l10n.t('Enabled {0}/{1}', String(final.size), String(all.length))];
-    if (newlyDisabled.length) parts.push(vscode.l10n.t('Closed: {0}', fmtList(newlyDisabled)));
-    if (newlyEnabled.length) parts.push(vscode.l10n.t('Opened: {0}', fmtList(newlyEnabled)));
-    if (autoAdded.size) parts.push(vscode.l10n.t('Auto-enabled dependencies: {0}', fmtList([...autoAdded])));
-    const summary = parts.join(isZh() ? '；' : '; ');
-    // 有关闭操作时，已导入的项目要清理工作区才会从 Java 视图移除（重载窗口不够）；只启用时重载即可
-    const disabling = newlyDisabled.length > 0;
-    const msg = disabling
-      ? vscode.l10n.t('Java modules updated: {0}. Closed modules only disappear from the Java view after a workspace clean — "Clean and Restart" is recommended.', summary)
-      : vscode.l10n.t('Java modules updated: {0}. Reload the window to apply.', summary);
-    const buttons = disabling
-      ? [vscode.l10n.t('Clean and Restart'), vscode.l10n.t('Reload Window')]
-      : [vscode.l10n.t('Reload Window')];
-    const choice = await vscode.window.showInformationMessage(msg, ...buttons);
-    if (choice === vscode.l10n.t('Reload Window')) {
-      await vscode.commands.executeCommand('workbench.action.reloadWindow');
-    } else if (choice === vscode.l10n.t('Clean and Restart')) {
-      await vscode.commands.executeCommand('java.clean.workspace');
-    }
   }
 
   async toggleModule(m: ModuleInfo): Promise<void> {
@@ -305,12 +284,7 @@ class ModuleManager {
       return; // Esc 取消
     }
     const selected = new Set(pickedItems.map((i) => i.folder));
-    const unCheckedPinned = [...pinned].filter((f) => !selected.has(f));
-    if (unCheckedPinned.length > 0) {
-      void vscode.window.showInformationMessage(
-        vscode.l10n.t('Pinned modules kept enabled automatically: {0}', fmtList(unCheckedPinned)),
-      );
-    }
+    // 锁定模块即使被取消勾选也会被 applyRequested 加回，静默处理，不弹通知
     await this.applyRequested(selected);
   }
 
@@ -337,6 +311,77 @@ class ModuleManager {
       return;
     }
     await this.toggleModule(m);
+  }
+
+  // ---- 清理 Java 工作区 ----
+
+  /**
+   * 语言服务器缓存目录：redhat.java 的 storagePath 是 workspaceStorage/<hash>/redhat.java，
+   * 我们的 storageUri 是同一个 <hash> 下的 dodo.java-module-manager，所以取兄弟目录。
+   */
+  private jdtWorkspaceDirs(): string[] {
+    const storage = this.context.storageUri?.fsPath;
+    if (!storage) {
+      return [];
+    }
+    const hashDir = path.dirname(storage);
+    const dirs: string[] = [];
+    try {
+      for (const entry of fs.readdirSync(hashDir, { withFileTypes: true })) {
+        if (!entry.isDirectory() || !entry.name.startsWith('redhat.java')) {
+          continue;
+        }
+        for (const sub of ['jdt_ws', 'ss_ws']) {
+          const dir = path.join(hashDir, entry.name, sub);
+          if (fs.existsSync(dir)) {
+            dirs.push(dir);
+          }
+        }
+      }
+    } catch {
+      // 目录不存在/无权限：交给下面的兜底
+    }
+    return dirs;
+  }
+
+  /**
+   * 自带重试的清理：redhat.java 的 deleteDirectory 是无重试的递归 rmdirSync，
+   * Windows 上撞到 gradle/buildship 还在写就 ENOTEMPTY，所以这里用 fs.rmSync(maxRetries) 先删干净。
+   */
+  async cmdCleanJavaWorkspace(): Promise<void> {
+    const dirs = this.jdtWorkspaceDirs();
+    const go = vscode.l10n.t('Delete and Reload');
+    const answer = await vscode.window.showWarningMessage(
+      dirs.length
+        ? vscode.l10n.t(
+            'Delete the Java language server cache and reload the window? No source files are touched, but the next import takes longer.\n\n{0}',
+            dirs.join('\n'),
+          )
+        : vscode.l10n.t('Java language server cache not found in this workspace. Nothing to clean.'),
+      { modal: true },
+      ...(dirs.length ? [go] : []),
+    );
+    if (answer !== go) {
+      return;
+    }
+    const failed: string[] = [];
+    for (const dir of dirs) {
+      try {
+        fs.rmSync(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 });
+      } catch {
+        failed.push(dir);
+      }
+    }
+    if (failed.length) {
+      void vscode.window.showErrorMessage(
+        vscode.l10n.t(
+          'Could not delete the Java language server cache — files are still locked (Gradle daemon / antivirus). Fully quit VS Code, then delete these folders by hand:\n\n{0}',
+          failed.join('\n'),
+        ),
+      );
+      return;
+    }
+    await vscode.commands.executeCommand('workbench.action.reloadWindow');
   }
 
   // ---- 预设 ----
@@ -430,6 +475,7 @@ export function activate(context: vscode.ExtensionContext): void {
   reg('javaModuleManager.toggleEditorEnable', () => mgr.cmdToggleEditor());
   reg('javaModuleManager.savePreset', () => mgr.cmdSavePreset());
   reg('javaModuleManager.applyPreset', () => mgr.cmdApplyPreset());
+  reg('javaModuleManager.cleanJavaWorkspace', () => mgr.cmdCleanJavaWorkspace());
   reg('javaModuleManager.rescan', () => {
     mgr.rescan();
     void vscode.window.showInformationMessage(

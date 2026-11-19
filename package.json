@@ -2,7 +2,7 @@
   "name": "java-module-manager",
   "displayName": "Java Module Manager",
   "description": "Eclipse-style Maven module open/close (close project): right-click or status bar to pick which modules to compile; the rest are not imported or compiled",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "publisher": "dodo",
   "license": "MIT",
   "icon": "media/icon.png",
@@ -74,6 +74,11 @@
       {
         "command": "javaModuleManager.applyPreset",
         "title": "%cmd.applyPreset%",
+        "category": "%cat%"
+      },
+      {
+        "command": "javaModuleManager.cleanJavaWorkspace",
+        "title": "%cmd.cleanJavaWorkspace%",
         "category": "%cat%"
       },
       {

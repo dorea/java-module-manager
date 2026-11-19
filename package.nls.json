@@ -7,6 +7,7 @@
   "cmd.savePreset": "Save Current Selection as Preset",
   "cmd.applyPreset": "Apply Preset",
   "cmd.rescan": "Rescan Modules",
+  "cmd.cleanJavaWorkspace": "Clean Java Language Server Workspace (with retry)",
   "cfg.title": "Java Module Manager",
   "cfg.pinned": "Optional: pinned base modules (matched by `artifactId` or folder name) that always stay enabled and cannot be unchecked. Empty by default = all modules can be closed; closing a module that others depend on still triggers a warning.",
   "cfg.depth": "Maximum directory depth to scan for pom.xml files.",

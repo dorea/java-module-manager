@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.1
+
+- Silent by design: selecting modules no longer pops a notification. The status bar counter updates on its own; reload / clean entries moved into the status bar tooltip.
+- New command **Clean Java Language Server Workspace (with retry)**: deletes `redhat.java/jdt_ws` with `fs.rmSync({ maxRetries: 10 })` before reloading, which fixes the `ENOTEMPTY: directory not empty` error the Java extension hits on Windows when Gradle still holds files.
+
 ## 0.1.0
 
 - Status bar selector showing enabled/total modules; enabled modules are pre-checked.
