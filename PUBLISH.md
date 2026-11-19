@@ -58,19 +58,44 @@ npm run package          # 生成 java-module-manager-<版本号>.vsix
 
 3. 点 **Create**
 
-### 3.2 触发发布
+### 3.2 触发发布（已验证可用：v0.1.1）
 
 ```bash
-cd <项目目录>
-npm version patch -m "%s"      # 升版本号，如 0.1.0 → 0.1.1
-git push --follow-tags         # 触发 GitHub Actions
+git status                                   # 必须是干净的工作树
+npm ci && npm run build && npm test          # 本地先过一遍，和 CI 完全同构
+npm version patch -m "chore(release): %s"    # 升版本号 + 自动 commit + 打 tag
+# package.json / package-lock.json 的 version 都会被 npm 一起改，不用手改
+git push --follow-tags
 ```
 
 Workflow 会自动：`npm ci` → 类型检查 + 构建 → 跑测试 → `vsce publish --oidc`。
-执行结果在 GitHub 仓库的 **Actions** 页查看。
+执行结果在 GitHub 仓库的 **Actions** 页查看；不想开网页可以查 API：
+
+```bash
+curl -s "https://api.github.com/repos/dorea/java-module-manager/actions/runs?per_page=1" \
+  | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{const r=JSON.parse(s).workflow_runs[0];console.log(r.head_branch,r.status,r.conclusion,r.html_url)})"
+```
 
 > `--skip-duplicate` 已加上：版本号已存在时不会报错，可安全重跑。
 > 若还没配好信任策略，就不要推 tag（推分支无影响），否则 Actions 会失败一次。
+
+### 3.3 发布失败时怎么重试
+
+先看失败在**哪一步**——`npm ci` 挂了就不要怀疑 OIDC，那是锁文件的问题：
+
+```bash
+curl -s "https://api.github.com/repos/dorea/java-module-manager/actions/runs/<run-id>/jobs" \
+  | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{JSON.parse(s).jobs[0].steps.forEach(x=>console.log(x.number,x.name,'→',x.conclusion))})"
+```
+
+修完要重跑同一个版本号，得先删掉远端 tag 再重打（tag 一旦推过，同一个 tag 不会再触发）：
+
+```bash
+git push origin :refs/tags/v0.1.1 && git tag -d v0.1.1
+# ...提交修复...
+git push origin main
+git tag -a v0.1.1 -m "v0.1.1" && git push origin v0.1.1
+```
 
 ---
 
@@ -99,6 +124,8 @@ git push -u origin main
 | `ERROR Extension entrypoint(s) missing` | 忘了 `npm run build`，`out/extension.js` 不存在 |
 | `ERROR Make sure to edit the README.md` / 缺 repository | `repository.url` 不是合法地址 |
 | Actions 里 OIDC 报 token exchange 失败 | 信任策略里的 owner / repo / workflow 与实际不符；私有仓库要在建策略后 48 小时内跑一次 |
+| `npm ci` 报 `EUSAGE ... can only install packages when your package.json and package-lock.json are in sync` | 锁文件和 `package.json` 的版本范围对不上（v0.1.1 就是这么挂的：锁里是 vsce 4.1.0，`package.json` 还写着 `^3.2.0`）。改完依赖必须跑 `npm install` 重新生成 lock，并本地验证一次 `rm -rf node_modules && npm ci` |
+| `--oidc` 报 unknown option | `@vscode/vsce` 版本太老，`--oidc` 是 4.x 才有的，devDependency 保持 `^4.1.0` |
 | 发布成功但搜不到 | 索引延迟（几分钟到几小时）；直接访问扩展 URL 可立即验证 |
 | `dodo` 已被占用 | 换 ID，只需改 `package.json` 的 `publisher`（`repository` / `bugs` 保持 `dorea`） |
 
